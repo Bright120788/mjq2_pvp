@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>马嘉棋2 · 项目说明文档</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
+    background: #f4f6f9;
+    color: #22303c;
+    line-height: 1.85;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8ee;
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  }
+  header h1 { font-size: 17px; letter-spacing: 1px; flex: 1; font-weight: bold; }
+  header a, header button {
+    font-family: inherit; font-size: 13px; letter-spacing: 1px;
+    padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    text-decoration: none; border: 1px solid #d3dae1;
+    background: #fff; color: #44525f;
+  }
+  header a:hover, header button:hover { background: #f2f5f8; }
+  .layout { display: flex; align-items: flex-start; max-width: 1180px; margin: 0 auto; gap: 22px; padding: 22px 20px 80px; }
+  nav {
+    flex: 0 0 230px;
+    position: sticky; top: 74px;
+    max-height: calc(100vh - 100px);
+    overflow: auto;
+    background: #fff; border-radius: 12px; padding: 14px 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    font-size: 12.5px;
+  }
+  nav .t { font-size: 12px; color: #8794a1; letter-spacing: 1px; margin-bottom: 8px; }
+  nav a { display: block; color: #44525f; text-decoration: none; padding: 4px 6px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  nav a:hover { background: #f2f5f8; color: #1b2733; }
+  nav a.lv3 { padding-left: 18px; color: #7d8b97; font-size: 12px; }
+  main {
+    flex: 1; min-width: 0;
+    background: #fff; border-radius: 12px; padding: 34px 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+  }
+  main h1, main h2, main h3, main h4 { color: #1b2733; line-height: 1.5; scroll-margin-top: 80px; }
+  main h1 { font-size: 26px; margin: 6px 0 18px; padding-bottom: 12px; border-bottom: 3px solid #1b2733; }
+  main h2 { font-size: 21px; margin: 34px 0 14px; padding-bottom: 8px; border-bottom: 1px solid #e2e8ee; }
+  main h3 { font-size: 17px; margin: 24px 0 10px; color: #2b3a49; }
+  main h4 { font-size: 15px; margin: 18px 0 8px; color: #44525f; }
+  main p { margin: 10px 0; }
+  main ul, main ol { margin: 10px 0 10px 26px; }
+  main li { margin: 4px 0; }
+  main code { background: #f0f3f7; color: #b03a2e; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; font-family: Consolas, 'Courier New', monospace; }
+  main pre { background: #f7f9fb; border: 1px solid #e2e8ee; border-radius: 8px; padding: 14px 16px; overflow: auto; margin: 14px 0; }
+  main pre code { background: none; color: #22303c; padding: 0; font-size: 12.5px; line-height: 1.7; }
+  main blockquote { border-left: 4px solid #cfd8e0; background: #fafbfc; margin: 12px 0; padding: 8px 16px; color: #5b6a76; }
+  main hr { border: none; border-top: 1px solid #e2e8ee; margin: 26px 0; }
+  main a { color: #2471a3; }
+  main table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; display: block; overflow-x: auto; }
+  main th, main td { border: 1px solid #dde3e9; padding: 7px 10px; text-align: left; vertical-align: top; }
+  main th { background: #f2f5f8; font-weight: bold; white-space: nowrap; }
+  main tr:nth-child(even) td { background: #fafbfc; }
+  .loading { color: #8794a1; text-align: center; padding: 60px 0; font-size: 14px; }
+  .err { color: #c0392b; }
+  #top {
+    position: fixed; right: 26px; bottom: 26px; z-index: 20;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #1b2733; color: #fff; border: none; cursor: pointer;
+    font-size: 20px; line-height: 1; box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    display: none;
+  }
+  #top:hover { background: #2b3a49; }
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { padding: 22px 18px; }
+    .layout { padding: 14px 10px 70px; }
+  }
+/* ===== 统一深色文档主题 ===== */
+:root { color-scheme: dark; }
+body { background: linear-gradient(135deg, rgba(5,8,12,.86), rgba(10,13,18,.45)), url('/Background.jpg') center / cover fixed no-repeat; color: #dbe4ec; }
+header, nav, main { background: linear-gradient(145deg, rgba(24,32,41,.98), rgba(10,14,19,.98)); border-color: rgba(224,180,96,.25); box-shadow: 0 12px 34px rgba(0,0,0,.5); }
+header h1, main h1, main h2, main h3, main h4 { color: #f0cc82; }
+header a, header button { background: rgba(255,255,255,.04); color: #dce5ed; border-color: #465360; }
+header a:hover, header button:hover, nav a:hover { background: rgba(255,255,255,.1); }
+nav .t { color: #b99758; }
+nav a { color: #b8c6d2; }
+nav a.lv3 { color: #8fa0ae; }
+main h1 { border-color: #c69a51; }
+main h2 { border-color: rgba(255,255,255,.14); }
+main h3 { color: #dcb36c; }
+main code { background: #0c131a; color: #e2a56f; }
+main pre { background: #0b1117; border-color: #394754; }
+main pre code { color: #cedae4; }
+main blockquote { border-color: #8b6d3d; background: rgba(224,180,96,.08); color: #aebdca; }
+main a { color: #69c4c4; }
+main th { background: #202d38; color: #efcc83; }
+main th, main td { border-color: #3b4a56; }
+main tr:nth-child(even) td { background: rgba(255,255,255,.035); }
+#top { background: #b9893e; color: #17130d; }
+</style>
+</head>
+<body>
+<header>
+  <h1>马嘉棋2 · 项目说明文档</h1>
+  <button onclick="exportHtml()" title="把渲染后的文档另存为一个独立的 HTML 文件">另存为 HTML</button>
+  <a href="/">← 返回主页</a>
+</header>
+<div class="layout">
+  <nav id="toc"><div class="t">目录</div></nav>
+  <main id="doc"><div class="loading">正在加载文档…</div></main>
+</div>
+<button id="top" onclick="scrollTo({top:0,behavior:'smooth'})" title="回到顶部">↑</button>
+
+<script>
+const DOC_FILE = '马嘉棋2_项目详细说明文档.md';
+let renderedHtml = '';
+
+/* ---------- markdown → html（自写极简渲染器，不依赖外网 CDN） ---------- */
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function inline(s) {
+  return s
+    .replace(/`([^`]+)`/g, (m, p) => '<code>' + p + '</code>')
+    .replace(/\*\*([^*]+)\*\*/g, (m, p) => '<strong>' + p + '</strong>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noreferrer">' + t + '</a>');
+}
+function slug(s, used) {
+  let base = 'h-' + s.replace(/[\s`*[\]()（）【】:：/\\.,，。、|#>+]/g, '-').slice(0, 40);
+  let id = base, n = 1;
+  while (used[id]) id = base + '-' + (++n);
+  used[id] = 1;
+  return id;
+}
+function renderMarkdown(md, used) {
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  const stack = [];              // 列表栈：{ tag, indent }
+  let para = [];
+  function closeLists() { while (stack.length) out.push('</' + stack.pop().tag + '>'); }
+  function flushPara() {
+    if (para.length) { out.push('<p>' + inline(esc(para.join(' '))) + '</p>'); para = []; }
+  }
+  function special(line) {
+    return /^\s*```/.test(line) || /^#{1,6}\s/.test(line) || /^\s*\|/.test(line) ||
+           /^\s*>/.test(line) || /^(-{3,}|\*{3,}|_{3,})\s*$/.test(line) ||
+           /^\s*([-*+]|\d+\.)\s+/.test(line);
+  }
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*$/.test(line)) { flushPara(); closeLists(); i++; continue; }
+
+    // 代码块
+    if (/^\s*```/.test(line)) {
+      flushPara(); closeLists();
+      const lang = line.trim().slice(3).trim();
+      const buf = []; i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i++; }
+      i++;
+      out.push('<pre' + (lang ? ' data-lang="' + esc(lang) + '"' : '') + '><code>' + esc(buf.join('\n')) + '</code></pre>');
+      continue;
+    }
+    // 标题
+    let m = line.match(/^(#{1,6})\s+(.*)$/);
+    if (m) {
+      flushPara(); closeLists();
+      const lv = m[1].length, txt = m[2].trim();
+      const id = slug(txt, used);
+      out.push('<h' + lv + ' id="' + id + '">' + inline(esc(txt)) + '</h' + lv + '>');
+      i++; continue;
+    }
+    // 分隔线
+    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); closeLists(); out.push('<hr>'); i++; continue; }
+    // 表格
+    if (/^\s*\|/.test(line) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])) {
+      flushPara(); closeLists();
+      const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      const head = cells(line);
+      i += 2;
+      let body = '';
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        const cs = cells(lines[i]);
+        body += '<tr>' + cs.map(c => '<td>' + inline(esc(c)) + '</td>').join('') + '</tr>';
+        i++;
+      }
+      out.push('<table><thead><tr>' + head.map(c => '<th>' + inline(esc(c)) + '</th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table>');
+      continue;
+    }
+    // 引用
+    if (/^\s*>/.test(line)) {
+      flushPara(); closeLists();
+      const buf = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) { buf.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
+      out.push('<blockquote>' + buf.map(b => inline(esc(b))).join('<br>') + '</blockquote>');
+      continue;
+    }
+    // 列表
+    m = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+    if (m) {
+      flushPara();
+      const indent = m[1].replace(/\t/g, '  ').length;
+      const tag = /\d/.test(m[2]) ? 'ol' : 'ul';
+      while (stack.length && indent < stack[stack.length - 1].indent) out.push('</' + stack.pop().tag + '>');
+      if (!stack.length || indent > stack[stack.length - 1].indent) {
+        stack.push({ tag, indent });
+        out.push('<' + tag + '>');
+      } else if (stack[stack.length - 1].tag !== tag) {
+        out.push('</' + stack.pop().tag + '>'); stack.push({ tag, indent }); out.push('<' + tag + '>');
+      }
+      out.push('<li>' + inline(esc(m[3])) + '</li>');
+      i++; continue;
+    }
+    // 普通段落
+    para.push(line.trim());
+    i++;
+  }
+  flushPara(); closeLists();
+  return out.join('\n');
+}
+
+/* ---------- 加载与渲染 ---------- */
+const docEl = document.getElementById('doc');
+fetch('/' + encodeURIComponent(DOC_FILE))
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+  .then(md => {
+    const used = {};
+    renderedHtml = renderMarkdown(md, used);
+    docEl.innerHTML = renderedHtml;
+    buildToc(used);
+  })
+  .catch(e => {
+    docEl.innerHTML = '<div class="loading err">文档加载失败：' + esc(String(e && e.message || e)) +
+      '<br><br>请确认 <code>' + esc(DOC_FILE) + '</code> 与 server.js 在同一目录下。</div>';
+  });
+
+function buildToc() {
+  const toc = document.getElementById('toc');
+  const hs = docEl.querySelectorAll('h1, h2, h3');
+  let html = '<div class="t">目录</div>';
+  hs.forEach(h => {
+    if (!h.id) return;
+    html += '<a class="lv' + h.tagName[1] + '" href="#' + h.id + '">' + esc(h.textContent) + '</a>';
+  });
+  toc.innerHTML = html;
+  toc.addEventListener('click', (ev) => {
+    const a = ev.target.closest('a');
+    if (!a) return;
+    ev.preventDefault();
+    const t = docEl.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+window.addEventListener('scroll', () => {
+  document.getElementById('top').style.display = window.scrollY > 400 ? 'block' : 'none';
+});
+
+function exportHtml() {
+  if (!renderedHtml) return;
+  const css = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
+  const html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">' +
+    '<title>马嘉棋2 · 项目说明文档</title><style>' + css + '</style></head><body>' +
+    '<header><h1>马嘉棋2 · 项目说明文档</h1></header>' +
+    '<div class="layout" style="max-width:900px"><main>' + renderedHtml + '</main></div></body></html>';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  a.download = '马嘉棋2_项目说明文档.html';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karess · 卡组编辑器</title>
+<style>
+/* ============================================================
+   黑白（灰阶）配色：白底黑字，不保留任何彩色
+   层级用「黑→白」的灰阶 ramp 表达，指令/反制用左侧色条深浅区分
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --bg:      #ffffff;   /* 页面底色 */
+  --panel:   #fafafa;   /* 面板底色 */
+  --panel-2: #f2f2f2;   /* 次级底色（输入框 / 卡组行） */
+  --line:    #e2e2e2;   /* 常规描边 */
+  --line-2:  #cfcfcf;   /* 加重描边 */
+  --ink:     #1a1a1a;   /* 主文字（近黑） */
+  --ink-2:   #5f5f5f;   /* 说明文字 */
+  --ink-3:   #8f8f8f;   /* 次要信息 */
+  --inv:     #ffffff;   /* 反白文字 */
+  --g1:      #e8e8e8;   /* 灰阶 ramp 最浅 */
+  --g2:      #c9c9c9;
+  --g3:      #8a8a8a;
+  --g4:      #1a1a1a;   /* 灰阶 ramp 最深 */
+  /* 全页仅保留的少量语义色：稀有度标签 + 指令/反制的蓝红（与游戏内一致） */
+  --rar-common:  #ededed; --rar-common-ink:  #4a4a4a;
+  --rar-limited: #dbe7f5; --rar-limited-ink: #1d4f7c;
+  --rar-special: #e7dcf7; --rar-special-ink: #5b3a99;
+  --rar-elite:   #f8e7c8; --rar-elite-ink:   #8a5a00;
+  --c-order:     #2471a3;   /* 指令（蓝） */
+  --c-counter:   #c0392b;   /* 反制（红） */
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 20px;
+}
+h1 { color: var(--ink); text-align: center; margin-bottom: 4px; letter-spacing: 1px; }
+h1::after { content: ''; display: block; width: 56px; height: 3px; background: var(--g4); margin: 10px auto 0; }
+.subtitle { text-align: center; color: var(--ink-3); font-size: 13px; margin-bottom: 20px; }
+
+.layout { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+.card-pool { flex: 1; min-width: 340px; }
+
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filter-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+.filter-btn:hover { border-color: var(--ink); color: var(--ink); }
+.filter-btn.active { background: var(--g4); color: var(--inv); border-color: var(--g4); }
+/* 类型按钮激活时用对应的语义色，方便一眼区分当前在筛哪一类 */
+.filter-btn[data-type="指令"].active { background: var(--c-order); border-color: var(--c-order); }
+.filter-btn[data-type="反制"].active { background: var(--c-counter); border-color: var(--c-counter); }
+
+/* ---- 筛选面板（稀有度 / 花费 / 名称 / 描述） ---- */
+.filter-panel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  padding: 10px 12px; margin-bottom: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+}
+.filter-field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.filter-field > span { white-space: nowrap; }
+.filter-field select, .filter-field input {
+  font-family: inherit; font-size: 12px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px;
+  padding: 4px 8px; height: 28px;
+}
+.filter-field input { width: 132px; }
+.filter-field select:focus, .filter-field input:focus { outline: none; border-color: var(--ink); }
+.filter-reset {
+  font-family: inherit; font-size: 12px; cursor: pointer;
+  background: var(--bg); color: var(--ink-2);
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 12px; height: 28px;
+}
+.filter-reset:hover { border-color: var(--ink); color: var(--ink); }
+.filter-count { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.filter-count b { color: var(--ink); }
+.card-list .empty-tip { color: var(--ink-3); font-size: 13px; padding: 18px 4px; text-align: center; }
+
+.card-list { display: flex; flex-direction: column; gap: 8px; max-height: 65vh; overflow-y: auto; padding-right: 6px; }
+.card-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  border-left: 6px solid var(--g2);
+  padding: 10px 12px;
+}
+/* 指令 / 反制：沿用游戏内的蓝 / 红语义色，用左侧色条区分 */
+.card-item.指令 { border-left-color: var(--c-order); }
+.card-item.反制 { border-left-color: var(--c-counter); }
+.card-info { flex: 1; }
+.card-name { font-weight: bold; font-size: 15px; }
+.cost {
+  margin-left: 6px; padding: 1px 6px; border-radius: 4px;
+  background: var(--panel-2); color: var(--ink-2); font-size: 11px; font-weight: normal;
+}
+.card-desc { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+.card-meta { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+/* 稀有度标签：保留彩色（浅底深字，在白底上依然克制） */
+.tag-level { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; margin-right: 6px; }
+.tag-level.普通 { background: var(--rar-common);  color: var(--rar-common-ink); }
+.tag-level.限定 { background: var(--rar-limited); color: var(--rar-limited-ink); }
+.tag-level.特殊 { background: var(--rar-special); color: var(--rar-special-ink); }
+.tag-level.精英 { background: var(--rar-elite);   color: var(--rar-elite-ink); }
+
+.add-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--g4); color: var(--inv); border: none;
+  font-size: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0;
+}
+.add-btn:hover:not(:disabled) { background: #000; }
+.add-btn:disabled { background: var(--g1); color: var(--ink-3); cursor: not-allowed; }
+
+.deck-panel {
+  width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; position: sticky; top: 20px;
+}
+.deck-panel h2 { font-size: 16px; color: var(--ink); margin-bottom: 10px; }
+.deck-count { font-size: 14px; margin-bottom: 10px; color: var(--ink-2); }
+.deck-count b { color: var(--ink); }
+.deck-list { max-height: 40vh; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.deck-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 13px;
+}
+.deck-row .n { color: var(--ink-3); width: 20px; text-align: right; }
+.deck-row .nm { flex: 1; }
+.deck-row .x {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line-2); color: var(--ink-2);
+  cursor: pointer; font-size: 13px; font-weight: bold;
+}
+.deck-row .x:hover { background: var(--g4); border-color: var(--g4); color: var(--inv); }
+
+.btn {
+  width: 100%; padding: 10px; margin-top: 8px;
+  border: 1px solid transparent; border-radius: 8px; font-size: 14px; font-weight: bold;
+  cursor: pointer; font-family: inherit;
+}
+.btn-export { background: var(--g4); color: var(--inv); }                              /* 主操作：黑底白字 */
+.btn-export:hover { background: #000; }
+.btn-import { background: var(--g3); color: var(--inv); }                              /* 次操作：中灰 */
+.btn-import:hover { background: var(--g4); }
+.btn-clear { background: var(--bg); border-color: var(--line-2); color: var(--ink-2); } /* 描边按钮 */
+.btn-clear:hover { border-color: var(--ink); color: var(--ink); }
+.btn-copy { background: var(--panel-2); color: var(--ink); }                            /* 浅灰按钮 */
+.btn-copy:hover { background: var(--g2); }
+textarea.code {
+  width: 100%; height: 52px; margin-top: 8px; padding: 8px;
+  border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+  font-family: monospace; font-size: 12px; resize: none;
+}
+textarea.code:focus { outline: none; border-color: var(--ink); background: var(--bg); }
+textarea.code::placeholder { color: var(--ink-3); }
+/* 没有颜色可用了，状态改用「符号 + 灰底」区分：错误=粗体黑字带 ✕，成功=灰字带 ✓ */
+.err { color: var(--ink); font-size: 12px; min-height: 16px; margin-top: 6px; }
+.err:not(:empty) { font-weight: bold; background: var(--panel-2); border-radius: 4px; padding: 2px 6px; }
+.err:not(:empty)::before { content: '✕ '; }
+.ok { color: var(--ink-2); font-size: 12px; min-height: 16px; margin-top: 6px; }
+.ok:not(:empty)::before { content: '✓ '; }
+
+/* 滚动条也走灰阶，避免系统默认的彩色/深色轨道破坏黑白感 */
+.card-list::-webkit-scrollbar, .deck-list::-webkit-scrollbar { width: 8px; }
+.card-list::-webkit-scrollbar-track, .deck-list::-webkit-scrollbar-track { background: var(--panel-2); border-radius: 4px; }
+.card-list::-webkit-scrollbar-thumb, .deck-list::-webkit-scrollbar-thumb { background: var(--g2); border-radius: 4px; }
+.card-list::-webkit-scrollbar-thumb:hover, .deck-list::-webkit-scrollbar-thumb:hover { background: var(--g3); }
+/* 键盘焦点环也换成黑色，盖掉浏览器默认的蓝色描边 */
+button:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--g4); outline-offset: 2px; }
+/* ===== 统一深色卡组编辑器主题 ===== */
+:root { color-scheme: dark; --bg:#0b1117; --panel:#151d25; --panel-2:#1d2832; --line:#33424e; --line-2:#526270; --ink:#e6edf3; --ink-2:#a9b7c3; --ink-3:#7f909f; --inv:#10151a; --g1:#26333d; --g2:#3d4d59; --g3:#78909e; --g4:#d4aa5e; --c-order:#62c4c5; --c-counter:#e39a64; }
+body { background: linear-gradient(135deg, rgba(5,8,12,.86), rgba(10,13,18,.45)), url('/Background.jpg') center / cover fixed no-repeat; color: var(--ink); }
+h1 { color: #f0cc82; text-shadow: 0 2px 14px rgba(237,190,99,.2); }
+.filter-btn { background: rgba(255,255,255,.04); color: var(--ink-2); border-color: var(--line-2); }
+.filter-btn:hover { border-color: #d4aa5e; color: var(--ink); }
+.filter-btn.active { background: #c1934a; color: #17130d; border-color: #e1bb70; }
+.filter-btn[data-type="指令"].active { background: var(--c-order); border-color: var(--c-order); color: #102126; }
+.filter-btn[data-type="反制"].active { background: var(--c-counter); border-color: var(--c-counter); color: #241710; }
+.filter-panel, .deck-panel { background: rgba(20,29,37,.92); border-color: var(--line); }
+.filter-field select, .filter-field input { background: #0b1117; color: var(--ink); border-color: var(--line-2); }
+.card-item { background: linear-gradient(145deg,#202b35,#11181f); border-color: #3e4d59; color: var(--ink); box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.card-item:hover { border-color: #d4aa5e; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.card-item.指令 { border-left-color: var(--c-order); }
+.card-item.反制 { border-left-color: var(--c-counter); }
+.deck-list, .deck-summary { background: rgba(11,17,23,.9); border-color: var(--line); }
+.deck-card { background: #202b35; border-color: #526270; color: var(--ink); }
+.card-desc { color: var(--ink-2); }
+.card-meta { color: var(--ink-3); }
+button { color: var(--ink); }
+button.primary, .btn-primary { background: #bd8f46; color: #17130d; border-color: #e1bb70; }
+</style>
+</head>
+<body>
+
+<h1>马嘉棋2 · 卡组编辑器</h1>
+<div class="subtitle">单机本地页面，无需服务器。卡组最多 50 张；同名卡限张：普通4 / 限定3 / 特殊2 / 精英1</div>
+
+<div class="layout">
+  <div class="card-pool">
+    <div class="filter-bar">
+      <button class="filter-btn active" data-type="all">全部</button>
+      <button class="filter-btn" data-type="指令">指令</button>
+      <button class="filter-btn" data-type="反制">反制</button>
+    </div>
+    <div class="filter-panel">
+      <label class="filter-field"><span>稀有度</span>
+        <select id="fLevel">
+          <option value="all">全部</option>
+          <option value="普通">普通</option>
+          <option value="限定">限定</option>
+          <option value="特殊">特殊</option>
+          <option value="精英">精英</option>
+        </select>
+      </label>
+      <label class="filter-field"><span>花费</span>
+        <select id="fCost">
+          <option value="all">全部</option>
+          <option value="0-2">0 ~ 2K</option>
+          <option value="3-5">3 ~ 5K</option>
+          <option value="6-9">6 ~ 9K</option>
+          <option value="10-14">10 ~ 14K</option>
+          <option value="15+">15K 及以上</option>
+        </select>
+      </label>
+      <label class="filter-field"><span>名称</span><input type="text" id="fName" placeholder="名称关键词"></label>
+      <label class="filter-field"><span>描述</span><input type="text" id="fDesc" placeholder="描述关键词"></label>
+      <button class="filter-reset" id="fReset" type="button">清空筛选</button>
+      <div class="filter-count" id="fCount"></div>
+    </div>
+    <div class="card-list" id="cardList"></div>
+  </div>
+
+  <div class="deck-panel">
+    <h2>我的卡组</h2>
+    <div class="deck-count">已选 <b id="count">0</b> / 50 张</div>
+    <div class="deck-list" id="deckList"></div>
+    <button class="btn btn-export" onclick="exportCode()">导出卡组码</button>
+    <button class="btn btn-import" onclick="importPrompt()">导入卡组码</button>
+    <button class="btn btn-clear" onclick="clearDeck()">清空卡组</button>
+    <textarea class="code" id="codeOut" readonly placeholder="导出的卡组码会显示在这里"></textarea>
+    <textarea class="code" id="codeIn" placeholder="粘贴卡组码后点击导入"></textarea>
+    <div class="err" id="err"></div>
+    <div class="ok" id="ok"></div>
+    <button class="btn btn-copy" onclick="copyCode()" style="margin-top:4px">复制卡组码</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 卡牌数据（与游戏端 ma_jia_qi_2.html 保持一致）
+// 字段：id / name / cost / type / level / desc
+// ============================================================
+const CARDS = {
+  granary:  { id:'granary',   name:'广积粮',   cost:3, type:'指令', level:'普通', needTarget:false, desc:'指挥点槽+1（上限40）' },
+  suppress: { id:'suppress',  name:'压制',     cost:2, type:'指令', level:'普通', needTarget:true,  desc:'压制一个格子；若其已被压制，则将其兵力设为1' },
+  levee:    { id:'levee',     name:'临时征召', cost:2, type:'指令', level:'限定', needTarget:true,  desc:'目标格+30兵力，下下个友方回合结束-30（不会因此低于1）；移动：词条随兵力移动，占领时跟随，格失守则消失' },
+  defeat:   { id:'defeat',    name:'溃敌',     cost:3, type:'指令', level:'普通', needTarget:true,  desc:'将兵力≤20的非大本营格子兵力降为1' },
+  chaos:    { id:'chaos',     name:'混乱',     cost:3, type:'指令', level:'普通', needTarget:true,  desc:'将与友方格相邻、兵力≤20的非友方格转为友方格' },
+  carpet:   { id:'carpet',    name:'地毯式轰炸', cost:9, type:'指令', level:'特殊', needTarget:false, desc:'敌方所有非总部格受15伤害（兵力不低于1）' },
+  rally:    { id:'rally',     name:'重整旗鼓', cost:4, type:'指令', level:'限定', needTarget:true,  desc:'移除所有友方格子的压制，目标友方格+5兵力' },
+  zone_suppress: { id:'zone_suppress', name:'区域压制', cost:4, type:'指令', level:'精英', needTarget:true, desc:'目标格3x3范围全部压制' },
+  air_sup:  { id:'air_sup',   name:'空中优势', cost:4, type:'指令', level:'精英', needTarget:true,  desc:'压制一整行或一列（点击行号/列号）' },
+  conquer:  { id:'conquer',   name:'征服',     cost:2, type:'指令', level:'普通', needTarget:false, desc:'友方每占领10格，抽1张牌' },
+  warbond:  { id:'warbond',   name:'战争债券', cost:5, type:'指令', level:'限定', needTarget:false, desc:'获得1个指挥点槽；友方大本营"下个友方回合结束+1槽"' },
+  supply:   { id:'supply',    name:'物资运输', cost:1, type:'指令', level:'普通', needTarget:false, desc:'将一个「生产」和「计划」加入手牌' },
+  production:{ id:'production', name:'生产',    cost:0, type:'指令', level:'普通', needTarget:false, desc:'获得1个指挥点（不可主动携带)' },
+  retreat:  { id:'retreat',   name:'撤退',     cost:3, type:'指令', level:'普通', needTarget:true,  desc:'撤退友方格或兵力≤35非敌方大本营敌方格：降至1，其余随机分给相邻友方格' },
+  rebellion:{ id:'rebellion', name:'叛乱',     cost:5, type:'指令', level:'限定', needTarget:true,  desc:'将非大本营敌方格转为友方；只能攻击不能转移，友方回合结束变回敌方' },
+  scatter:  { id:'scatter',   name:'随机弹道', cost:0, type:'指令', level:'普通', needTarget:true,  desc:'对非大本营格子造成随机0/6/12伤害' },
+  mobilize: { id:'mobilize',  name:'动员',     cost:9, type:'指令', level:'限定', needTarget:false, desc:'仅限本回合移动/攻击前；若友方总兵力≤敌方，所有友方格+10兵力；+5指挥点' },
+  fastlink: { id:'fastlink',  name:'快速联络', cost:7, type:'指令', level:'特殊', needTarget:true,  desc:'连接目标格与友方大本营：目标格须与某个己方格曼哈顿距离≤13；随机最短路上的每个格子临时连为友方（存续到下个友方回合结束时）；届时原中立格变回中立、原敌方格设回兵力5的敌方——但若该格期间已被本方移动兵力真正占领，则不再回退' },
+  blitz:    { id:'blitz',     name:'闪电战',   cost:5, type:'指令', level:'特殊', needTarget:false, desc:'本回合所有移动与攻击实时结算' },
+  winter:   { id:'winter',    name:'冬季攻势', cost:4, type:'指令', level:'特殊', needTarget:false, desc:'全场非中立格受6伤害（不低于1兵力）' },
+  united:   { id:'united',    name:'联合进攻', cost:12, type:'指令', level:'精英', needTarget:true,  desc:'对一个敌方大本营造成80伤害' },
+  quick_dispatch:{ id:'quick_dispatch', name:'快速调度', cost:4, type:'指令', level:'特殊', needTarget:false, desc:'本回合友方格子移动时-1花费' },
+  local_resist:{ id:'local_resist', name:'局部抵抗', cost:2, type:'指令', level:'普通', needTarget:true, desc:'压制一个敌方格，对敌方大本营造成10伤害，洗一张「抵抗」入敌方卡组' },
+  resist:  { id:'resist',    name:'抵抗',     cost:1, type:'指令', level:'普通', needTarget:false, desc:'抉择：对友方大本营造成10伤害，或弃掉卡组顶一张牌（不可主动携带)' },
+  border_patrol:{ id:'border_patrol', name:'边境巡查', cost:3, type:'指令', level:'特殊', needTarget:true, desc:'抉择：控制一个不与非敌方格相邻且兵力≤30的格子，或压制所有与友方格相邻的敌方格' },
+  rest:     { id:'rest',      name:'休养',     cost:7, type:'指令', level:'特殊', needTarget:false, desc:'双方抽牌，直到手牌数量为9' },
+  peace_summit:{ id:'peace_summit', name:'求和', cost:6, type:'指令', level:'普通', needTarget:false, desc:'抉择：抽1张+友方大本营+20兵力，或双方抽3张+双方大本营各+40兵力' },
+  resupply: { id:'resupply',  name:'资源补充', cost:5, type:'指令', level:'特殊', needTarget:false, desc:'抽牌，直到手牌数不小于敌方手牌数量' },
+  resist_longa:{ id:'resist_longa', name:'抵抗万岁', cost:3, type:'指令', level:'普通', needTarget:false, desc:'将两张「抵抗」洗入敌方卡组，抽一张牌' },
+  absolute_defense:{ id:'absolute_defense', name:'绝对防御', cost:7, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子（含大本营）获得"友方大本营无法被攻击，本格被敌方占领时移除本效果"' },
+  trap_dev: { id:'trap_dev',  name:'开发陷阱', cost:2, type:'指令', level:'普通', needTarget:false, desc:'随机给出3张反制，选择一张加入手牌' },
+  requisition:{ id:'requisition', name:'资源索取', cost:6, type:'指令', level:'普通', needTarget:false, desc:'敌方随机将一个手牌置于其牌堆顶，友方抽一张牌' },
+  clear_effect:{ id:'clear_effect', name:'清除', cost:1, type:'指令', level:'普通', needTarget:true, desc:'清除一个格子（不能指向大本营）：使其失去除「压制」以外的所有效果；若该格有「兵力增加」词条，则将该格兵力设为 max(20, 当前兵力-所有因词条增加的兵力)' },
+  seize:    { id:'seize',     name:'趁虚而入', cost:9, type:'指令', level:'普通', needTarget:true,  desc:'友方反制触发时，获得-2花费。使一个格子具有+55兵力' },
+  idle_talk:{ id:'idle_talk', name:'无心漫谈', cost:1, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方占领格子时，对其造成10伤害' },
+  rash_plan:{ id:'rash_plan', name:'轻虑浅谋', cost:1, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方使用指令（花费x）时，其大本营受3x伤害' },
+  friendly_fire: { id:'friendly_fire', name:'误伤', cost:2, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方攻击/占领友方格子时，由随机敌方非大本营格代受（兵力不低于1）' },
+  encircle: { id:'encircle',  name:'包围圈',   cost:3, type:'反制', level:'限定', needTarget:false, desc:'敌反制：敌方占领友方格时，其3x3范围友方格+10攻击力' },
+  radio_jam:{ id:'radio_jam', name:'无线电干扰', cost:2, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方使用指令时，将其反制使其失效，并给其一张「计划」' },
+  signal_jam:{ id:'signal_jam', name:'信号拦截', cost:3, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方使用花费≥4的指令时，将其反制使其失效' },
+  vigilant: { id:'vigilant',  name:'保持警戒', cost:1, type:'反制', level:'普通', needTarget:false, desc:'敌反制：敌方指令指向友方格子时，将其反制使其失效' },
+  sisu:     { id:'sisu',      name:'西苏精神', cost:4, type:'反制', level:'限定', needTarget:false, desc:'敌反制：友方大本营受敌方伤害时，改由敌方大本营承担' },
+  signal_cut:{ id:'signal_cut', name:'信号中断', cost:3, type:'反制', level:'限定', needTarget:false, desc:'敌反制：敌方本回合第2张指令时，将其反制使其失效' },
+  missing:  { id:'missing',   name:'失踪',     cost:2, type:'反制', level:'特殊', needTarget:false, desc:'敌反制：仅当敌方格子>友方时；敌方占领友方格→其周围3x3（不含被占格）改为友方格且兵力≥20' },
+  vox_jam:  { id:'vox_jam',   name:'全频干扰', cost:3, type:'反制', level:'精英', needTarget:false, desc:'敌反制：敌方使用指令时，将其反制使其失效；反制后抽一张牌' },
+  // ---- 新增卡牌 ----
+  watch:     { id:'watch',    name:'监视',       cost:4, type:'指令', level:'限定', needTarget:false, desc:'选择一张花费不大于10的手牌（模板），再选择另一张花费不大于10的手牌将其转化为模板，并失去等同于被转化牌花费的指挥点；「抵抗」不可被转化；若指挥点不足以支付，则失去等量指挥点槽' },
+  conscript: { id:'conscript',name:'义务兵',     cost:5, type:'指令', level:'精英', needTarget:false, desc:'卡组中有义务兵则第五回合被抽取；使用时使卡组中所有奇数花费的牌-1花费（当前手牌不变）' },
+  prolonged_siege:{ id:'prolonged_siege', name:'长久围困', cost:5, type:'指令', level:'特殊', needTarget:false, desc:'抽4张牌；下个友方回合结束时弃掉这4张牌' },
+  loot:      { id:'loot',     name:'战利品',     cost:2, type:'指令', level:'普通', needTarget:false, desc:'查看卡组顶3张，选1加入手牌，其余2张置于牌堆底' },
+  armed_resist:{ id:'armed_resist', name:'武装抵抗', cost:3, type:'指令', level:'特殊', needTarget:true, desc:'对一个敌方格子（不能指向大本营）造成20伤害；伤害比该格兵力每多出2，将一张「抵抗」洗入敌方卡组' },
+  research:  { id:'research', name:'研发',       cost:0, type:'指令', level:'精英', needTarget:false, desc:'将一张随机的研发加入手中' },
+  fortress:  { id:'fortress', name:'军事要塞',   cost:2, type:'指令', level:'普通', needTarget:false, desc:'查看敌方卡组随机3张与友方卡组随机3张，各选1张并各「开发」一份复制品洗入友方卡组（双方原牌都保留，友方卡组共+2张）' },
+  destroy:   { id:'destroy',  name:'毁坏',       cost:9, type:'指令', level:'特殊', needTarget:false, desc:'查看敌方手牌随机3张，选1弃掉，并将一个复制加入友方手牌' },
+  build_strength:{ id:'build_strength', name:'养精蓄锐', cost:7, type:'指令', level:'精英', needTarget:true, desc:'对一个格子造成X伤害（X 初始 1、成倍递增、上限 99）；若其兵力不大于伤害，将一个伤害翻倍（上限 99）的本卡洗入友方卡组' },
+  resource:  { id:'resource', name:'资源利用',   cost:1, type:'指令', level:'普通', needTarget:false, desc:'抽一张构筑之外的牌，并使其获得-1花费' },
+  demoralize:{ id:'demoralize',name:'人心涣散',  cost:2, type:'指令', level:'限定', needTarget:true, desc:'使一个友方格获得3倍当前兵力，并获得“攻击造成自身兵力一半伤害、受敌方两倍伤害”' },
+  reckless:  { id:'reckless', name:'鲁莽攻击',   cost:2, type:'指令', level:'普通', needTarget:true, desc:'使一个友方格+15兵力，并获得“本格子攻击敌方格子或被攻击时，友方总部承受等量伤害”' },
+  decoder:   { id:'decoder',  name:'破译机',     cost:1, type:'指令', level:'特殊', needTarget:false, desc:'查看敌方卡组中的随机3张指令，各「复制」一份洗入友方卡组（对方保留原牌）' },
+  ambitious: { id:'ambitious',name:'好高骛远',   cost:1, type:'指令', level:'普通', needTarget:false, desc:'弃一张手牌，抽取一张花费更高的手牌' },
+  limit_mission:{ id:'limit_mission', name:'极限使命', cost:1, type:'指令', level:'普通', needTarget:true, desc:'对一个友方格子造成30伤害，抽2张牌' },
+  industrial:{ id:'industrial',name:'工业革命',  cost:6, type:'指令', level:'普通', needTarget:false, desc:'将一张随机的研发加入手中' },
+  back_prod: { id:'back_prod',name:'后方生产',   cost:1, type:'指令', level:'普通', needTarget:false, desc:'抽一张卡组中花费最低的牌，若为构筑之外则重复，直到非构筑之外或手牌已满' },
+  final_ritual:{ id:'final_ritual', name:'最后的仪式', cost:3, type:'指令', level:'精英', needTarget:false, desc:'将8张「单点打击」洗入卡组' },
+  // ---- 研发链 / 构筑之外（不可主动携带） ----
+  mil_research:{ id:'mil_research', name:'军事研发', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「核威慑」或「扩展军事研发」加入手中' },
+  ext_research:{ id:'ext_research', name:'扩展军事研发', cost:8, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「夜袭敌军」或「高级军事研发」加入手中' },
+  adv_research:{ id:'adv_research', name:'高级军事研发', cost:11, type:'指令', level:'精英', needTarget:false, desc:'抉择：将5张「加强生产」或一张「二号兵器」加入手中' },
+  nuke:      { id:'nuke',     name:'核威慑',     cost:0, type:'指令', level:'特殊', needTarget:false, desc:'压制所有敌方格子' },
+  night_raid:{ id:'night_raid',name:'夜袭敌军',  cost:0, type:'指令', level:'特殊', needTarget:true, desc:'将一个格子设为兵力5的中立格；若此前其兵力不大于30，抽2张牌' },
+  boost_prod:{ id:'boost_prod',name:'加强生产',  cost:0, type:'指令', level:'特殊', needTarget:true, desc:'使一个格子+65兵力，并获得“被敌方占领时，将一张「兵力增强」加入手中并移除此效果”' },
+  force_amp: { id:'force_amp',name:'兵力增强',   cost:0, type:'指令', level:'特殊', needTarget:true, desc:'使一个格子+30兵力' },
+  weapon2:   { id:'weapon2',  name:'二号兵器',   cost:14, type:'指令', level:'精英', needTarget:false, desc:'将4张「空中盟军支援」置于卡组顶' },
+  air_assist:{ id:'air_assist',name:'空中盟军支援', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'使一个格子+40兵力；被敌方占领时，洗入4张「单点打击」并移除此效果' },
+  single_strike:{ id:'single_strike', name:'单点打击', cost:1, type:'指令', level:'特殊', needTarget:false, desc:'对敌方大本营造成10伤害，抽1张牌' },
+  // ---- 政治研发链 ----
+  pol_research:{ id:'pol_research', name:'政治研发', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「政治宣传」或「扩展政治研发」加入手中' },
+  pol_propaganda:{ id:'pol_propaganda', name:'政治宣传', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'对一个敌方格子及其上下左右相邻格子造成10伤害' },
+  ext_pol_research:{ id:'ext_pol_research', name:'扩展政治研发', cost:8, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「政治鼓舞」或「高级政治研发」加入手中' },
+  pol_morale:{ id:'pol_morale', name:'政治鼓舞', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'使卡组所有牌-1花费；所有友方格-1行动花费，直到下下个友方回合结束时' },
+  adv_pol_research:{ id:'adv_pol_research', name:'高级政治研发', cost:11, type:'指令', level:'精英', needTarget:false, desc:'抉择：将一张「军事中心」或3张「饱和炮击」加入手中' },
+  military_center:{ id:'military_center', name:'军事中心', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格+50兵力；回合结束时，该格-40兵力（不低于1），并将一张「兵力增强」加入手中' },
+  satbarrage:{ id:'satbarrage', name:'饱和炮击', cost:4, type:'指令', level:'特殊', needTarget:false, desc:'造成60点伤害，随机分配到所有敌方格子（每次5点，随机一个敌方格；不会使敌方格子兵力低于0）' },
+  // ---- 第二期新卡 ----
+  war_gains:{ id:'war_gains', name:'战争收益', cost:7, type:'指令', level:'特殊', needTarget:false, desc:'获得3个指挥点槽' },
+  federal:{ id:'federal', name:'联邦国家', cost:18, type:'指令', level:'精英', needTarget:false, desc:'若友方大本营兵力不低于150，对敌方大本营造成100伤害；抽4张牌' },
+  fortify:{ id:'fortify', name:'防御工事', cost:4, type:'指令', level:'普通', needTarget:false, desc:'使友方大本营获得+35兵力' },
+  leap_prod:{ id:'leap_prod', name:'跃进生产', cost:3, type:'指令', level:'特殊', needTarget:false, desc:'抉择：选择手中一个非最终端的研发，使其跳过本阶段（初级→对应的扩展研发，扩展→对应的高级研发）' },
+  special_study:{ id:'special_study', name:'特殊研究', cost:4, type:'指令', level:'限定', needTarget:false, desc:'抉择：选择一张手牌，从卡组抽一张与它花费相同的牌；卡组里没有同费用的牌则不抽' },
+  transform_prod:{ id:'transform_prod', name:'转变生产', cost:5, type:'指令', level:'特殊', needTarget:false, desc:'抉择：选择手中一个研发，将其转化为同阶段的随机其它研发；每使用过一次本卡，花费+2' },
+  nursing_team:{ id:'nursing_team', name:'护理队', cost:4, type:'指令', level:'普通', needTarget:false, desc:'获得一个指挥点槽；友方大本营获得+20兵力' },
+  dispatch_army:{ id:'dispatch_army', name:'调度军队', cost:5, type:'指令', level:'精英', needTarget:false, desc:'使友方大本营获得：友方回合中，使用第2张指令时抽两张牌（永久）' },
+  trap_siege:{ id:'trap_siege', name:'陷阱围困', cost:6, type:'指令', level:'精英', needTarget:false, desc:'使友方大本营获得：友方每次反制触发时，对敌方大本营造成10点伤害（永久）' },
+  call_reinforce:{ id:'call_reinforce', name:'呼叫援军', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：抽两张牌，或使友方大本营+40兵力' },
+  strategic_abandon:{ id:'strategic_abandon', name:'战略放弃', cost:3, type:'指令', level:'普通', needTarget:false, desc:'敌方随机弃一张花费不大于6的手牌' },
+  bio_squad:{ id:'bio_squad', name:'生化小队', cost:15, type:'指令', level:'精英', needTarget:true, desc:'使一个友方格+65兵力，并对敌造成45点伤害随机分配（不会使敌格兵力低于0）' },
+  bastion:{ id:'bastion', name:'堡垒防御', cost:15, type:'指令', level:'精英', needTarget:false, desc:'移除卡组顶的7张牌，将友方大本营的兵力设为135' },
+  express_telegram:{ id:'express_telegram', name:'加急电报', cost:6, type:'指令', level:'精英', needTarget:false, desc:'从手牌选一张置于卡组顶；之后抽到这张牌时花费为0（中途被打乱洗牌也依然有效）' },
+  // ---- 医疗研发链 ----
+  med_research:{ id:'med_research', name:'医疗研发', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「免疫」或「扩展医疗研发」加入手中' },
+  immunity:{ id:'immunity', name:'免疫', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'大本营免疫敌方伤害一回合；获得1个指挥点槽' },
+  ext_med_research:{ id:'ext_med_research', name:'扩展医疗研发', cost:8, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「生化作战」或「高级医疗研发」加入手中' },
+  bio_warfare:{ id:'bio_warfare', name:'生化作战', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'将随机敌格及其3x3敌格兵力设为0；将一张「生化小队」加入手中' },
+  adv_med_research:{ id:'adv_med_research', name:'高级医疗研发', cost:11, type:'指令', level:'精英', needTarget:false, desc:'抉择：将一张「青霉素」或两张「核武器打击」加入手中' },
+  penicillin:{ id:'penicillin', name:'青霉素', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'使所有友方格子+30兵力，抽4张牌' },
+  nuke_strike:{ id:'nuke_strike', name:'核武器打击', cost:6, type:'指令', level:'特殊', needTarget:false, desc:'对敌方所有格子造成25点伤害（不会使敌方格子兵力低于0）' },
+  // ---- 新反制 ----
+  fire_dept:{ id:'fire_dept', name:'国家消防局', cost:6, type:'反制', level:'限定', needTarget:false, desc:'敌反制：友方格子被敌方攻击时，将本次伤害设为1，并使友方大本营获得"友方回合开始前，友方所有格子至多受到1点伤害"' },
+  last_ditch:{ id:'last_ditch', name:'殊死防守', cost:0, type:'反制', level:'普通', needTarget:false, desc:'敌反制：友方单位被攻击前+10兵力；若敌方未占领该格，抽1张' },
+  stuck:{ id:'stuck', name:'寸步难行', cost:5, type:'反制', level:'特殊', needTarget:false, desc:'敌反制：敌方回合结束时，对其所有格子造成 2×敌方本回合移动/攻击次数 的伤害' },
+  discover_enemy:{ id:'discover_enemy', name:'发现敌人', cost:1, type:'反制', level:'特殊', needTarget:false, desc:'敌反制：敌方占领新的、处于中间两行的格子时，抽3张' },
+  lightning_raid:{ id:'lightning_raid', name:'闪电袭击', cost:2, type:'反制', level:'限定', needTarget:false, desc:'敌反制：敌方在每回合固定抽牌之外抽牌时，对敌方大本营造成25伤害' },
+  new_recruit:{ id:'new_recruit', name:'新兵入伍', cost:3, type:'反制', level:'普通', needTarget:false, desc:'敌反制：友方格子被敌方占领时，使友方所有格子获得+10兵力' },
+  plan:     { id:'plan',      name:'计划',     cost:2, type:'指令', level:'普通', needTarget:false, desc:'抽1张牌。无法被主动携带（仅由其他卡牌给予）' },
+  // ---- 2026-10-04 新增 ----
+  bomb_boom:{ id:'bomb_boom', name:'蹦蹦炸弹', cost:1, type:'指令', level:'限定', needTarget:true, desc:'对一个敌方格子造成5点伤害；若目标是大本营，则额外抽一张牌' },
+  cmd_reinforce:{ id:'cmd_reinforce', name:'指令增员', cost:5, type:'指令', level:'限定', needTarget:true, desc:'使一个友方非大本营格获得：友方每次使用指令时，对一个随机敌方格子造成5点伤害（该伤害不会使格子兵力低于0）' },
+  irregular_troops:{ id:'irregular_troops', name:'非常规兵员', cost:6, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子获得：友方每次使用卡牌时，该格获得+10兵力' },
+  battle_hardened:{ id:'battle_hardened', name:'愈战愈勇', cost:5, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子获得：本格子攻击并占领一个敌方格子时，获得+20兵力' },
+  inspire:{ id:'inspire', name:'鼓舞', cost:9, type:'指令', level:'特殊', needTarget:false, desc:'使友方大本营获得：友方花费不大于3的牌具有-1花费（永久）' },
+  log_research:{ id:'log_research', name:'后勤研发', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「飞行炸弹」或一张「扩展后勤研发」加入手中' },
+  flying_bomb:{ id:'flying_bomb', name:'飞行炸弹', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'将一个兵力不大于30的格子（非大本营）的兵力设为0' },
+  ext_log_research:{ id:'ext_log_research', name:'扩展后勤研发', cost:8, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「合成机油」或一张「高级后勤研发」加入手中' },
+  synth_oil:{ id:'synth_oil', name:'合成机油', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'使友方大本营获得：友方回合开始时，获得10个指挥点并额外抽一张牌，然后清除此效果（该抽牌可触发「闪电袭击」）' },
+  adv_log_research:{ id:'adv_log_research', name:'高级后勤研发', cost:11, type:'指令', level:'精英', needTarget:false, desc:'抉择：将一张「静默突袭」或一张「核平天下」加入手中' },
+  silent_raid:{ id:'silent_raid', name:'静默突袭', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'将一个敌方格子的兵力设为0；敌方随机弃两张牌' },
+  nuke_world:{ id:'nuke_world', name:'核平天下', cost:14, type:'指令', level:'精英', needTarget:false, desc:'除双方大本营及其相邻格外，将全场所有格子的兵力设为0；每因此移除60兵力，获得1个指挥点' },
+  // ---- 2026-10-04 第二批 ----
+  fierce_volley:{ id:'fierce_volley', name:'激烈齐射', cost:4, type:'指令', level:'特殊', needTarget:true, desc:'对一个格子造成25点伤害；对以其为中心的3×3范围内所有格子施加一次「清除」（移除词条，并把「兵力增加」词条带来的兵力一并移除，保底20）；不会指向或波及大本营' },
+  artillery_strike:{ id:'artillery_strike', name:'火炮打击', cost:4, type:'指令', level:'限定', needTarget:true, desc:'清除一个格子（不能指向大本营）；若其兵力不大于25，则将其兵力降为0' },
+  // ---- 2026-10-04 第三批（抵抗体系）----
+  liberation:{ id:'liberation', name:'解放', cost:5, type:'指令', level:'特殊', needTarget:false, desc:'将3张「抵抗」加入敌方卡组；使友方大本营+30兵力' },
+  resist_reform:{ id:'resist_reform', name:'抵抗变革', cost:4, type:'指令', level:'限定', needTarget:true, desc:'使一个友方格子获得：敌方抽取「抵抗」时，友方抽一张牌' },
+  resist_climax:{ id:'resist_climax', name:'抵抗高潮', cost:5, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子获得：敌方使用「抵抗」时，对敌方总部造成15点伤害' },
+  call_to_arms:{ id:'call_to_arms', name:'号召', cost:1, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子获得：友方回合开始时获得+5兵力；该格受到任何伤害、或该格移动/攻击时，移除此效果' },
+  greed:{ id:'greed', name:'贪心', cost:1, type:'指令', level:'普通', needTarget:true, desc:'对一个格子造成 X 点伤害（X = 1 + 本方此前使用「贪心」的次数，上限15）；若目标是大本营，有 50% 概率不造成伤害；同一回合至多使用 5 次；结算时本方卡组每有10张牌，便将一张「贪心」洗入本方卡组（洗入的副本视为构筑之外）' },
+  shipping:{ id:'shipping', name:'航运', cost:3, type:'指令', level:'普通', needTarget:false, desc:'抽两张牌，并失去1个指挥点' },
+  resourceful:{ id:'resourceful', name:'足智多谋', cost:2, type:'指令', level:'普通', needTarget:false, desc:'从卡组抽一张「增员」类指令加入手牌；卡组里没有则不抽' },
+  logi_hub:{ id:'logi_hub', name:'后勤中枢', cost:6, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格子获得：友方使用花费为0的卡牌时，抽一张牌' },
+  // ---- 2026-10-09 第十五批：国际议会 / 至死方休 / 「增员」体系 ----
+  intl_council:{ id:'intl_council', name:'国际议会', cost:10, type:'指令', level:'精英', needTarget:true, desc:'控制一个敌方格子及其所有相邻的敌方格子（转为友方；控制类易主，保留词条）' },
+  fight_to_death:{ id:'fight_to_death', name:'至死方休', cost:11, type:'指令', level:'特殊', needTarget:false, desc:'对敌方所有格子造成5点伤害；若有格子因此兵力值被设为0则重复结算。被本卡牌攻击的格子仍然保持对应阵营，不会变为中立' },
+  reinforce_depot:{ id:'reinforce_depot', name:'增员军需部', cost:2, type:'指令', level:'特殊', needTarget:false, desc:'抉择：从随机 3 张「增员」类指令中选择一张，开发其复制洗入本方卡组；若友方有格子具有「增员」特效，则再从随机 3 张特殊卡牌中选择一张开发' },
+  reinforce_raid:{ id:'reinforce_raid', name:'增员袭击', cost:5, type:'指令', level:'特殊', needTarget:true, desc:'将敌方卡组中随机一张指令的复制加入手中；并使一个友方非大本营格获得「指令增员」的效果' },
+  infiltrate:{ id:'infiltrate', name:'渗透', cost:6, type:'指令', level:'限定', needTarget:false, desc:'对敌方随机分配等同于「2×友方增员特效数量」的伤害（每 2 点做一次随机分配），重复执行「友方增员特效数量」次' },
+  special_reinforce_op:{ id:'special_reinforce_op', name:'特殊增员行动', cost:8, type:'指令', level:'限定', needTarget:true, desc:'对一个敌方格子（可含大本营）造成10点伤害；使友方随机两个非大本营格获得「指令增员」的效果' },
+  passive_reinforce:{ id:'passive_reinforce', name:'被动增员', cost:2, type:'指令', level:'普通', needTarget:true, desc:'使一个友方非大本营格获得：本回合友方使用第偶数张指令时，失去1个指挥点；本格被敌方攻击或被敌方指令指向时，获得+10兵力' },
+  attack_reinforce:{ id:'attack_reinforce', name:'进攻增员', cost:2, type:'指令', level:'普通', needTarget:true, desc:'使一个友方非大本营格获得+10兵力（记为「进攻增员」词条，随军移动、可被「清除」剥除）；将一张「爆破」和一张「计划」加入手中' },
+  blast:{ id:'blast', name:'爆破', cost:0, type:'指令', level:'普通', needTarget:true, desc:'对一个格子造成5点伤害（构筑之外，不可主动携带）' },
+  air_reinforce:{ id:'air_reinforce', name:'空袭增员', cost:2, type:'指令', level:'特殊', needTarget:true, desc:'使一个非大本营格子（可为敌方或中立）获得：本格受到伤害时，在伤害结算前将兵力降为4（0点伤害不触发）；并使友方随机一个格子获得同名「空袭增员」（仅挂名，无任何效果）' },
+  raid_reinforce:{ id:'raid_reinforce', name:'袭击增员', cost:3, type:'指令', level:'限定', needTarget:true, desc:'使一个友方非大本营格+20兵力，并获得：本格被敌方占领时，将一张「持续袭击增员」置于卡组顶。随后对一个随机敌方格子（不含大本营）造成等同于本格兵力值的伤害，同时对本格造成等同于该敌方格子兵力值的伤害' },
+  sustained_raid_reinforce:{ id:'sustained_raid_reinforce', name:'持续袭击增员', cost:3, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方非大本营格+20兵力。对一个随机敌方格子（不含大本营）造成等同于本格兵力值的伤害，同时对本格造成等同于该敌方格子兵力值的伤害（构筑之外）' },
+  defend_reinforce:{ id:'defend_reinforce', name:'防御增员', cost:3, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方非大本营格获得「号召」（友方回合开始+5兵力）；并获得：友方大本营获得兵力时，对一个随机敌方格子造成10点伤害' },
+  assault_reinforce:{ id:'assault_reinforce', name:'突击增员', cost:4, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方非大本营格获得：不可作为兵力移动的目标；不会自动增长兵力；兵力上限为30；敌方攻击本格时最多派出10兵力；本格攻击未成功占领时，将被攻击格子的兵力设为1' },
+  control_reinforce:{ id:'control_reinforce', name:'控制增员', cost:4, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方非大本营格获得：全场所有兵力值不大于30的格子无法攻击（只能移动）' },
+  logistics_reinforce:{ id:'logistics_reinforce', name:'后勤增员', cost:7, type:'指令', level:'精英', needTarget:true, desc:'使一个友方非大本营格获得：友方使用指令时，对一个随机敌方格子造成15点伤害' },
+  // ---- 补齐（防御研发链，上一轮漏同步）----
+  def_research:{ id:'def_research', name:'防御研发', cost:5, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「预警」或一张「扩展防御研发」加入手中' },
+  warning:{ id:'warning', name:'预警', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'使友方大本营获得+40兵力，抽一张牌' },
+  ext_def_research:{ id:'ext_def_research', name:'扩展防御研发', cost:8, type:'指令', level:'普通', needTarget:false, desc:'抉择：将一张「防御组件」或一张「高级防御研发」加入手中' },
+  def_component:{ id:'def_component', name:'防御组件', cost:0, type:'指令', level:'特殊', needTarget:true, desc:'使一个友方格及其上下左右相邻的友方格各获得+25兵力' },
+  adv_def_research:{ id:'adv_def_research', name:'高级防御研发', cost:11, type:'指令', level:'精英', needTarget:false, desc:'抉择：将一张「主动声纳」或一张「压制撤退」加入手中' },
+  active_sonar:{ id:'active_sonar', name:'主动声纳', cost:0, type:'指令', level:'特殊', needTarget:false, desc:'压制所有敌方格子；使敌方所有手牌具有+4花费' },
+  suppress_retreat:{ id:'suppress_retreat', name:'压制撤退', cost:14, type:'指令', level:'精英', needTarget:false, desc:'重复撤退敌方所有兵力不大于30的格子，直到没有格子可以被撤退（兵力为1的格子不受影响）' },
+  seize7:{ id:'seize7', name:'趁虚而入', cost:7, type:'指令', level:'普通', needTarget:true, desc:'（7K档）使一个格子具有+55兵力' },
+  seize5:{ id:'seize5', name:'趁虚而入', cost:5, type:'指令', level:'普通', needTarget:true, desc:'（5K档）使一个格子具有+55兵力' },
+  seize3:{ id:'seize3', name:'趁虚而入', cost:3, type:'指令', level:'普通', needTarget:true, desc:'（3K档）使一个格子具有+55兵力' },
+  seize1:{ id:'seize1', name:'趁虚而入', cost:1, type:'指令', level:'普通', needTarget:true, desc:'（1K档）使一个格子具有+55兵力' },
+  seize0:{ id:'seize0', name:'趁虚而入', cost:0, type:'指令', level:'普通', needTarget:true, desc:'（0K档，最低档）使一个格子具有+55兵力' },
+};
+
+// 等级限张
+const LEVEL_LIMIT = { '普通': 4, '限定': 3, '特殊': 2, '精英': 1 };
+const MAX_DECK = 50; // 卡组上限（2026-09-29 由 45 提升为 50）
+
+let deck = []; // [cardId]
+
+// 卡组码编码：D1 + base64(JSON)
+function encodeDeck() {
+  return 'D1' + btoa(unescape(encodeURIComponent(JSON.stringify(deck))));
+}
+function decodeDeck(code) {
+  if (typeof code !== 'string' || code.length < 3 || code.substring(0, 2) !== 'D1') {
+    return { ok: false, err: '卡组码格式不正确（应以 D1 开头）' };
+  }
+  let arr;
+  try {
+    arr = JSON.parse(decodeURIComponent(escape(atob(code.substring(2)))));
+  } catch (e) {
+    return { ok: false, err: '卡组码解析失败' };
+  }
+  if (!Array.isArray(arr)) return { ok: false, err: '卡组码无效' };
+  const vErr = validateDeck(arr);
+  if (vErr) return { ok: false, err: vErr };
+  return { ok: true, deck: arr };
+}
+function validateDeck(arr) {
+  if (arr.length > MAX_DECK) return '卡组数量超过 ' + MAX_DECK + ' 张';
+  if (arr.length === 0) return '卡组为空';
+  const count = {};
+  for (const id of arr) {
+    const c = CARDS[id];
+    if (!c) return '包含未知卡牌: ' + id;
+    if (HIDDEN_IN_BUILDER.includes(id)) return '「' + (c ? c.name : id) + '」无法被主动携带';
+    count[id] = (count[id] || 0) + 1;
+    if (count[id] > LEVEL_LIMIT[c.level]) {
+      return '卡牌「' + c.name + '」为' + c.level + '级，最多 ' + LEVEL_LIMIT[c.level] + ' 张';
+    }
+  }
+  return null;
+}
+
+function canAdd(id) {
+  const c = CARDS[id];
+  if (!c) return false;
+  if (HIDDEN_IN_BUILDER.includes(id)) return false; // 无法主动携带
+  if (deck.length >= MAX_DECK) return false;
+  const n = deck.filter(x => x === id).length;
+  return n < LEVEL_LIMIT[c.level];
+}
+
+function addCard(id) {
+  if (!canAdd(id)) { setErr('无法添加：超出限张或上限'); return; }
+  deck.push(id);
+  renderAll();
+}
+function removeCard(idx) {
+  deck.splice(idx, 1);
+  renderAll();
+}
+
+function clearDeck() { deck = []; renderAll(); }
+
+function exportCode() {
+  const vErr = validateDeck(deck);
+  if (vErr) { setErr(vErr); document.getElementById('ok').textContent = ''; return; }
+  document.getElementById('codeOut').value = encodeDeck();
+  setOk('已生成卡组码（' + deck.length + ' 张）');
+}
+function importPrompt() {
+  const code = document.getElementById('codeIn').value.trim();
+  if (!code) { setErr('请先粘贴卡组码'); return; }
+  const r = decodeDeck(code);
+  if (!r.ok) { setErr(r.err); document.getElementById('ok').textContent = ''; return; }
+  deck = r.deck.slice();
+  renderAll();
+  setOk('导入成功：' + deck.length + ' 张');
+}
+function copyCode() {
+  const ta = document.getElementById('codeOut');
+  if (!ta.value) { setErr('请先导出卡组码'); return; }
+  ta.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(() => setOk('已复制到剪贴板'));
+  } else {
+    document.execCommand('copy');
+    setOk('已复制到剪贴板');
+  }
+}
+function setErr(m) { document.getElementById('err').textContent = m; }
+function setOk(m) { document.getElementById('ok').textContent = m; }
+
+// 不可被主动携带的卡（牌库中隐藏；仅由其他卡牌给予）
+const HIDDEN_IN_BUILDER = ['plan', 'production', 'resist', 'seize7', 'seize5', 'seize3', 'seize1', 'seize0', 'mil_research', 'ext_research', 'adv_research', 'pol_research', 'med_research', 'def_research', 'ext_def_research', 'adv_def_research', 'nuke', 'night_raid', 'boost_prod', 'force_amp', 'weapon2', 'air_assist', 'single_strike', 'pol_propaganda', 'ext_pol_research', 'pol_morale', 'adv_pol_research', 'military_center', 'satbarrage', 'immunity', 'ext_med_research', 'bio_warfare', 'adv_med_research', 'penicillin', 'nuke_strike', 'warning', 'def_component', 'active_sonar', 'suppress_retreat', 'log_research', 'ext_log_research', 'adv_log_research', 'flying_bomb', 'synth_oil', 'silent_raid', 'nuke_world', 'blast', 'sustained_raid_reinforce'];
+
+// 渲染
+function renderAll() { renderCardList(); renderDeck(); }
+// ---- 筛选条件（类型 / 稀有度 / 花费 / 名称 / 描述，互相叠加）----
+function costInRange(cost, range) {
+  if (range === 'all') return true;
+  if (range === '15+') return cost >= 15;
+  const parts = range.split('-');
+  return cost >= Number(parts[0]) && cost <= Number(parts[1]);
+}
+function matchFilters(c) {
+  if (currentFilter !== 'all' && c.type !== currentFilter) return false;
+  if (filterLevel !== 'all' && c.level !== filterLevel) return false;
+  if (!costInRange(c.cost, filterCost)) return false;
+  if (filterName && c.name.toLowerCase().indexOf(filterName) === -1) return false;
+  if (filterDesc && (c.desc || '').toLowerCase().indexOf(filterDesc) === -1) return false;
+  return true;
+}
+function renderCardList() {
+  const list = document.getElementById('cardList');
+  list.innerHTML = '';
+  let shown = 0;
+  for (const id of Object.keys(CARDS)) {
+    if (HIDDEN_IN_BUILDER.includes(id)) continue; // 隐藏不可携带卡
+    const c = CARDS[id];
+    if (!matchFilters(c)) continue;
+    shown++;
+    const item = document.createElement('div');
+    item.className = 'card-item ' + c.type;
+    item.innerHTML = '<div class="card-info">' +
+      '<div class="card-name">' + c.name + '<span class="cost">' + c.cost + ' K</span></div>' +
+      '<div class="card-meta"><span class="tag-level ' + c.level + '">' + c.level + '</span>' + c.type + '</div>' +
+      '<div class="card-desc">' + c.desc + '</div></div>';
+    const btn = document.createElement('button');
+    btn.className = 'add-btn';
+    btn.textContent = '+';
+    btn.disabled = !canAdd(id);
+    btn.onclick = () => addCard(id);
+    item.appendChild(btn);
+    list.appendChild(item);
+  }
+  if (!shown) {
+    const tip = document.createElement('div');
+    tip.className = 'empty-tip';
+    tip.textContent = '没有符合筛选条件的卡牌';
+    list.appendChild(tip);
+  }
+  const cnt = document.getElementById('fCount');
+  if (cnt) cnt.innerHTML = '筛出 <b>' + shown + '</b> / ' + Object.keys(CARDS).filter(id => !HIDDEN_IN_BUILDER.includes(id)).length + ' 张';
+}
+function renderDeck() {
+  document.getElementById('count').textContent = deck.length;
+  const list = document.getElementById('deckList');
+  list.innerHTML = '';
+  deck.forEach((id, i) => {
+    const c = CARDS[id];
+    if (!c) return;
+    const row = document.createElement('div');
+    row.className = 'deck-row';
+    row.innerHTML = '<span class="n">' + (i + 1) + '</span>' +
+      '<span class="nm">' + c.name + ' <span class="cost">' + c.cost + 'K</span></span>';
+    const x = document.createElement('button');
+    x.className = 'x';
+    x.textContent = '×';
+    x.onclick = () => removeCard(i);
+    row.appendChild(x);
+    list.appendChild(row);
+  });
+}
+
+let currentFilter = 'all';   // 类型：all / 指令 / 反制
+let filterLevel = 'all';     // 稀有度：all / 普通 / 限定 / 特殊 / 精英
+let filterCost = 'all';      // 花费区间：all / 0-2 / 3-5 / 6-9 / 10-14 / 15+
+let filterName = '';         // 名称关键词（小写）
+let filterDesc = '';         // 描述关键词（小写）
+
+document.querySelectorAll('.filter-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentFilter = b.dataset.type;
+    renderCardList();
+  });
+});
+document.getElementById('fLevel').addEventListener('change', (e) => { filterLevel = e.target.value; renderCardList(); });
+document.getElementById('fCost').addEventListener('change', (e) => { filterCost = e.target.value; renderCardList(); });
+document.getElementById('fName').addEventListener('input', (e) => { filterName = e.target.value.trim().toLowerCase(); renderCardList(); });
+document.getElementById('fDesc').addEventListener('input', (e) => { filterDesc = e.target.value.trim().toLowerCase(); renderCardList(); });
+document.getElementById('fReset').addEventListener('click', () => {
+  document.getElementById('fLevel').value = 'all';
+  document.getElementById('fCost').value = 'all';
+  document.getElementById('fName').value = '';
+  document.getElementById('fDesc').value = '';
+  filterLevel = 'all'; filterCost = 'all'; filterName = ''; filterDesc = '';
+  document.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active'));
+  document.querySelector('.filter-btn[data-type="all"]').classList.add('active');
+  currentFilter = 'all';
+  renderCardList();
+});
+
+renderAll();
+</script>
+</body>
+</html>

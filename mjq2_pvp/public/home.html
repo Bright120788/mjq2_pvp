@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karess · 主页</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    background: #f4f6f9;
+    color: #22303c;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    user-select: none;
+  }
+  .wrap { width: 100%; max-width: 560px; }
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 34px 30px 28px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  h1 {
+    font-size: 30px;
+    letter-spacing: 3px;
+    text-align: center;
+    color: #1b2733;
+    margin-bottom: 6px;
+  }
+  .sub {
+    text-align: center;
+    font-size: 13px;
+    color: #8794a1;
+    letter-spacing: 1px;
+    margin-bottom: 26px;
+  }
+  .btn-row { display: flex; flex-direction: column; gap: 12px; }
+  button, .link-btn {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 15px 18px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    transition: transform .12s, box-shadow .12s, background .12s;
+    letter-spacing: 1px;
+  }
+  button:hover, .link-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.28); }
+  button:active, .link-btn:active { transform: translateY(0); }
+  .b-doc  { background: #ffffff; color: #22303c; border-color: #d3dae1; }
+  .b-doc:hover { background: #f7f9fb; }
+  .b-deck { background: #ffffff; color: #22303c; border-color: #d3dae1; }
+  .b-deck:hover { background: #f7f9fb; }
+  .b-play { background: #1b2733; color: #ffffff; border-color: #1b2733; }
+  .b-play:hover { background: #2b3a49; border-color: #2b3a49; }
+  .b-label { font-size: 16px; font-weight: bold; }
+  .b-hint  { font-size: 12px; opacity: .62; margin-top: 3px; letter-spacing: 0; }
+  .room-box { margin: 20px 0 14px; }
+  .room-box label { display: block; font-size: 13px; color: #66757f; margin-bottom: 7px; letter-spacing: 1px; }
+  .room-line { display: flex; gap: 10px; }
+  input[type=text] {
+    flex: 1;
+    font-family: inherit;
+    font-size: 18px;
+    letter-spacing: 2px;
+    padding: 13px 14px;
+    border: 2px solid #d3dae1;
+    border-radius: 10px;
+    outline: none;
+    color: #1b2733;
+    background: #fbfcfd;
+    min-width: 0;
+  }
+  input[type=text]:focus { border-color: #1b2733; background: #ffffff; }
+  .b-dice {
+    flex: 0 0 auto;
+    background: #eef1f5;
+    color: #44525f;
+    border-color: #d3dae1;
+    font-size: 13px;
+    padding: 0 14px;
+    border-radius: 10px;
+  }
+  .note {
+    margin-top: 22px;
+    border-top: 1px dashed #e0e6ec;
+    padding-top: 16px;
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: #7d8b97;
+  }
+  .note b { color: #44525f; }
+  .dot-red  { color: #c0392b; font-weight: bold; }
+  .dot-blue { color: #2471a3; font-weight: bold; }
+  @media (max-width: 420px) {
+    .card { padding: 24px 18px 20px; }
+    h1 { font-size: 24px; }
+  }
+/* ===== 统一深色首页主题 ===== */
+:root { color-scheme: dark; }
+body { background: linear-gradient(135deg, rgba(5,8,12,.86), rgba(10,13,18,.45)), url('/Background.jpg') center / cover fixed no-repeat; color: #e6edf4; }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 12%, rgba(237,190,99,.14), transparent 40%); }
+.card { background: linear-gradient(145deg, rgba(27,35,44,.98), rgba(10,14,19,.98)); border: 1px solid rgba(224,180,96,.35); box-shadow: 0 22px 60px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.06); }
+h1 { color: #f1d18d; text-shadow: 0 2px 16px rgba(235,183,80,.22); }
+.sub, .room-box label, .b-hint { color: #99a8b7; }
+.b-doc, .b-deck { background: rgba(255,255,255,.04); color: #e3eaf1; border-color: #465360; }
+.b-doc:hover, .b-deck:hover { background: rgba(255,255,255,.1); border-color: #c69a51; }
+.b-play { background: linear-gradient(135deg,#b98232,#e1b869); color: #17130d; border-color: #e5bd70; box-shadow: 0 8px 24px rgba(212,157,59,.2); }
+.b-play:hover { background: linear-gradient(135deg,#d39b42,#f0cd80); border-color: #f4d58c; }
+input[type=text] { background: #0b1117; color: #f0f4f7; border-color: #465360; }
+input[type=text]:focus { background: #0b1117 !important; color: #f0f4f7; border-color: #d4a653; box-shadow: 0 0 0 3px rgba(212,166,83,.16); }
+.b-play .b-hint { color: #17130d; opacity: .72; }
+.b-dice { background: #263440; color: #e7edf3; border-color: #536879; }
+.b-dice:hover { background: #35495a; border-color: #d0a65a; }
+.note { background: rgba(255,255,255,.045); border-color: rgba(224,180,96,.25); color: #acb8c4; }
+.dot-red { color: #e39a64; }
+.dot-blue { color: #63c5c6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Karess</h1>
+    <div class="sub">双人联机对战 · 支持观战</div>
+
+    <div class="room-box">
+      <label>房间号（两人填同一个号即同桌）</label>
+      <div class="room-line">
+        <input type="text" id="roomInput" maxlength="32" placeholder="例如 1 或 k7fq2x" autocomplete="off" spellcheck="false">
+        <button class="b-dice" onclick="rollRoom()" title="随机生成一个房间号">随机</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <a class="link-btn b-play" href="#" onclick="enterRoom(event)">
+        <div class="b-label">进入房间</div>
+        <div class="b-hint">空房 → 当房主(红方)　已有房主 → 当蓝方　满员 → 观战</div>
+      </a>
+      <a class="link-btn b-deck" href="/deck_builder.html">
+        <div class="b-label">卡组编辑器</div>
+        <div class="b-hint">组建卡组、导出卡组码</div>
+      </a>
+      <a class="link-btn b-doc" href="/doc">
+        <div class="b-label">项目说明文档</div>
+        <div class="b-hint">规则、全部卡牌、机制实现与开发指南</div>
+      </a>
+    </div>
+
+    <div class="note">
+      <b>怎么玩：</b>两个人各自打开本页，<b>填同一个房间号</b>，点「进入房间」即可。<br>
+      第一个人自动成为<span class="dot-red">房主（红方）</span>，第二个人成为<span class="dot-blue">蓝方</span>；<br>
+      第三个人及以后进入<b>观战</b>——可以看到双方手牌、场上局势和完整战报。
+    </div>
+  </div>
+</div>
+
+<script>
+  const input = document.getElementById('roomInput');
+
+  // 从地址栏带过来的房间号（如 /?room=k7fq2x）自动填入
+  (function () {
+    const m = location.search.match(/[?&]room=([A-Za-z0-9_-]{1,32})/);
+    if (m) input.value = m[1];
+  })();
+
+  function rollRoom() {
+    const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
+    let s = '';
+    for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    input.value = s;
+    input.focus();
+  }
+
+  function enterRoom(e) {
+    if (e) e.preventDefault();
+    let room = (input.value || '').trim().replace(/[^A-Za-z0-9_-]/g, '');
+    if (!room) {                       // 没填就随机一个，相当于"我来开一局"
+      rollRoom();
+      room = input.value;
+    }
+    location.href = '/play/' + encodeURIComponent(room);
+  }
+
+  // 回车 = 点「进入房间」
+  input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') enterRoom(ev); });
+</script>
+</body>
+</html>
